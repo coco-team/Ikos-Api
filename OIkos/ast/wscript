@@ -1,0 +1,23 @@
+def build(bld):
+    bld(rule="cd ${SRC[1].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-cflags '-I ${SRC[0].parent.abspath()}' "
+        "-lflags '-I ${SRC[0].parent.abspath()} ikos.cma' "
+        "ast.cma",
+        source=['../api/ikos.cma', 'ast.ml'], target='ast.cma')
+
+    bld(rule="cd ${SRC[1].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-cflags '-I ${SRC[0].parent.abspath()}' "
+        "-lflags '-I ${SRC[0].parent.abspath()}' "
+        "ast.cmxa",
+        source=['../api/ikos.cma', 'ast.ml'], target='ast.cmxa', after='ast.cma')
+
+    bld(rule="echo '#!/bin/bash\nocaml "
+        "-I ${SRC[0].parent.abspath()} "
+        "-I ${SRC[1].parent.abspath()} "
+        "str.cma ikos.cma ast_lexer.cmo ast_parser.cmo ast.cmo' > ${TGT[0].abspath()} && "
+        "chmod +x ${TGT[0].abspath()}",
+        source=['../api/ikos.cma', 'ast.cma'], target='ast.top')

@@ -1,0 +1,16 @@
+version = "1.0"
+description = "OCaml API for IKOS (Inference Kernel for Open Static Analyzers)"
+requires = "ikos.ikos, ikos.ast"
+
+package "ikos" (
+  description = "Low-level API for IKOS (Inference Kernel for Open Static Analyzers)"
+  archive(byte) = "ikos.cma"
+  archive(native) = "ikos.cmxa"
+)
+
+package "ast" (
+  description = "High-level wrapper for IKOS (Inference Kernel for Open Static Analyzers)"
+  archive(byte) = "ast.cma"
+  archive(native) = "ast.cmxa"
+  requires = "str, ikos.ikos"
+)

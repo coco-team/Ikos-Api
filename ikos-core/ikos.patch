@@ -1,0 +1,230 @@
+diff -u -u -r ikos.old/bignums.hpp ikos/bignums.hpp
+--- ikos.old/bignums.hpp	2014-09-26 19:50:19.474112528 +0200
++++ ikos/bignums.hpp	2014-09-26 19:51:53.387451299 +0200
+@@ -175,7 +175,23 @@
+     bool operator>=(z_number x) {
+       return (this->_n >= x._n);
+     }
+-    
++
++    unsigned long ui() {
++      if(!this->_n.fits_ulong_p()) {
++        throw error("z_number: integer overflow using ui()");
++      }
++
++      return this->_n.get_ui();
++    }
++
++    long si() {
++      if(!this->_n.fits_slong_p()) {
++        throw error("z_number: integer overflow using si()");
++      }
++
++      return this->_n.get_si();
++    }
++
+     std::ostream& write(std::ostream& o) {
+       o << this->_n;
+       return o;
+diff -u -u -r ikos.old/common.hpp ikos/common.hpp
+--- ikos.old/common.hpp	2014-09-26 19:50:19.474112528 +0200
++++ ikos/common.hpp	2014-09-26 19:53:19.230789622 +0200
+@@ -163,7 +163,11 @@
+       index_t index() {
+ 	return this->_id;
+       }
+-      
++
++      std::string str() {
++        return *this->_s;
++      }
++
+       bool operator<(indexed_string s) {
+ 	return (this->_id < s._id);
+       }
+diff -u -u -r ikos.old/domain_products.hpp ikos/domain_products.hpp
+--- ikos.old/domain_products.hpp	2014-09-26 19:50:19.470779194 +0200
++++ ikos/domain_products.hpp	2014-09-26 20:09:16.824178432 +0200
+@@ -59,6 +59,16 @@
+     Domain1 _first;
+     Domain2 _second;
+ 
++    void canonicalize() {
++      if (!this->_is_bottom) {
++        this->_is_bottom = this->_first.is_bottom() || this->_second.is_bottom();
++        if (this->_is_bottom) {
++          this->_first = Domain1::bottom();
++          this->_second = Domain2::bottom();      
++        }
++      }
++    }
++
+   public:
+     static domain_product2_t top() {
+       return domain_product2_t(Domain1::top(), Domain2::top());
+@@ -70,15 +80,11 @@
+     
+   public:
+     domain_product2(): _is_bottom(false), _first(Domain1::top()), _second(Domain2::top()) { }
+-    
++
+     domain_product2(Domain1 first, Domain2 second): _is_bottom(false), _first(first), _second(second) {
+-      if(first.is_bottom() || second.is_bottom()) {
+-	this->_is_bottom = true;
+-	this->_first = Domain1::bottom();
+-	this->_second = Domain2::bottom();
+-      }
++      this->canonicalize();
+     }
+-    
++
+     domain_product2(const domain_product2_t& other): writeable(), _is_bottom(other._is_bottom), _first(other._first), _second(other._second) { }
+ 
+     domain_product2_t& operator=(domain_product2_t other) {
+@@ -89,6 +95,7 @@
+     }
+ 
+     bool is_bottom() {
++      this->canonicalize();
+       return this->_is_bottom;
+     }
+ 
+@@ -97,17 +104,19 @@
+     }
+ 
+     Domain1& first() {
++      this->canonicalize();
+       return this->_first;
+     }
+ 
+     Domain2& second() {
++      this->canonicalize();
+       return this->_second;
+     }
+ 
+     bool operator<=(domain_product2_t other) {
+-      if (this->_is_bottom) {
++      if (this->is_bottom()) {
+ 	return true;
+-      } else if (other._is_bottom) {
++      } else if (other.is_bottom()) {
+ 	return false;
+       } else {
+ 	return (this->_first <= other._first) && (this->_second <= other._second);
+@@ -119,9 +128,9 @@
+     }
+ 
+     domain_product2_t operator|(domain_product2_t other) {
+-      if (this->_is_bottom) {
++      if (this->is_bottom()) {
+ 	return other;
+-      } else if (other._is_bottom) {
++      } else if (other.is_bottom()) {
+ 	return *this;
+       } else {
+ 	return domain_product2_t(this->_first | other._first, this->_second | other._second);
+@@ -129,9 +138,9 @@
+     }
+ 
+     domain_product2_t operator||(domain_product2_t other) {
+-      if (this->_is_bottom) {
++      if (this->is_bottom()) {
+ 	return other;
+-      } else if (other._is_bottom) {
++      } else if (other.is_bottom()) {
+ 	return *this;
+       } else {
+ 	return domain_product2_t(this->_first || other._first, this->_second || other._second);
+@@ -139,7 +148,7 @@
+     }
+ 
+     domain_product2_t operator&(domain_product2_t other) {
+-      if (this->_is_bottom || other._is_bottom) {
++      if (this->is_bottom() || other.is_bottom()) {
+ 	return bottom();
+       } else {
+ 	return domain_product2_t(this->_first & other._first, this->_second & other._second);
+@@ -147,7 +156,7 @@
+     }
+ 
+     domain_product2_t operator&&(domain_product2_t other) {
+-      if (this->_is_bottom || other._is_bottom) {
++      if (this->is_bottom() || other.is_bottom()) {
+ 	return bottom();
+       } else {
+ 	return domain_product2_t(this->_first && other._first, this->_second && other._second);
+@@ -155,7 +164,7 @@
+     }
+     
+     std::ostream& write(std::ostream& o) {
+-      if (this->_is_bottom) {
++      if (this->is_bottom()) {
+ 	o << "_|_";
+       } else {
+ 	o << "(" << this->_first << ", " << this->_second << ")";
+diff -u -u -r ikos.old/muzq.hpp ikos/muzq.hpp
+--- ikos.old/muzq.hpp	2014-09-26 19:50:19.474112528 +0200
++++ ikos/muzq.hpp	2014-09-26 20:23:16.114227066 +0200
+@@ -577,7 +577,7 @@
+ 	this->add(boost::static_pointer_cast< statement_t, q_linear_assertion_t >(q_linear_assertion_ptr(new q_linear_assertion_t(cst))));
+       }
+       
+-      void checkpoint(std::string name) {
++      void check(std::string name) {
+ 	this->add(boost::static_pointer_cast< statement_t, checkpoint_t >(checkpoint_ptr(new checkpoint_t(name))));
+       }
+ 
+@@ -713,7 +713,7 @@
+ 	return nodes;
+       }
+       
+-      basic_block_t& basic_block(std::string name) {
++      basic_block_t& insert_basic_block(std::string name) {
+ 	basic_block_id_t name_id(name);
+ 	typename basic_block_map_t::iterator it = this->_blocks->find(name_id);
+ 	if (it == this->_blocks->end()) {
+diff -u -u -r ikos.old/octagons.hpp ikos/octagons.hpp
+--- ikos.old/octagons.hpp	2014-09-26 19:50:19.474112528 +0200
++++ ikos/octagons.hpp	2014-09-26 20:35:25.927602689 +0200
+@@ -116,6 +116,7 @@
+     
+   public:
+     typedef variable< Number, VariableName > variable_t;
++    typedef linear_expression< Number, VariableName > linear_expression_t;
+     typedef linear_constraint< Number, VariableName > linear_constraint_t;
+     typedef linear_constraint_system< Number, VariableName > linear_constraint_system_t;
+     typedef octagon< Number, VariableName > octagon_t;
+@@ -192,11 +193,6 @@
+       }
+     }
+ 
+-    void assign(VariableName x, linear_constraint_t e) {
+-      this->operator-=(x);
+-      // XXX to be completeted XXX
+-    }
+-    
+     void apply(operation_t op, VariableName x, VariableName y, bound_t lb, bound_t ub){	// Requires normalization.
+       typename map_t::iterator itx(_map.find(x)), ity(_map.find(y));
+       if(itx== _map.end() || ity== _map.end()){
+@@ -786,7 +782,20 @@
+       unsigned int idx(it->second);
+       return interval_t(_dbm(2*idx- 1, 2*idx).operator/(-2), _dbm(2*idx, 2*idx- 1).operator/(2));
+     } //Maintains normalization.
+-    
++
++    void assign(VariableName x, linear_expression_t e) {
++      // XXX to be completeted XXX
++      throw ikos::error("todo");
++    }
++
++    void operator-=(VariableName v) {
++      throw ikos::error("todo");
++    }
++
++    linear_constraint_system_t constraints() {
++      return linear_constraint_system_t();
++    }
++
+     // Output function
+     std::ostream& write(std::ostream& o) { // Normalization is not enforced in order to maintain accuracy.
+       if(_is_bottom){

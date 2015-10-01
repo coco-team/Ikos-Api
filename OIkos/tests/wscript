@@ -1,0 +1,24 @@
+def build(bld):
+    bld(rule="cd ${SRC[1].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-cflags '-I ${SRC[0].parent.abspath()}' "
+        "-lflags '-I ${SRC[0].parent.abspath()} ikos.cmxa -cc ${CXX} ${OCAMLC_IKOS_LINKFLAGS}' "
+        "test_api.native",
+        source=['../api/ikos.cmxa', 'test_api.ml'], target='test_api.native')
+
+    bld(rule="cd ${SRC[2].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-cflags '-I ${SRC[0].parent.abspath()} -I ${SRC[1].parent.abspath()}' "
+        "-lflags '-I ${SRC[0].parent.abspath()} -I ${SRC[1].parent.abspath()} str.cmxa ikos.cmxa ast.cmxa -cc ${CXX} ${OCAMLC_IKOS_LINKFLAGS}' "
+        "test_ast.native",
+        source=['../api/ikos.cmxa', '../ast/ast.cmxa', 'test_ast.ml'], target='test_ast.native')
+
+    bld(rule="cd ${SRC[2].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-cflags '-I ${SRC[0].parent.abspath()} -I ${SRC[1].parent.abspath()}' "
+        "-lflags '-I ${SRC[0].parent.abspath()} -I ${SRC[1].parent.abspath()} str.cmxa ikos.cmxa ast.cmxa -cc ${CXX} ${OCAMLC_IKOS_LINKFLAGS}' "
+        "test_ast_example.native",
+        source=['../api/ikos.cmxa', '../ast/ast.cmxa', 'test_ast_example.ml'], target='test_ast_example.native')

@@ -1,0 +1,17 @@
+def build(bld):
+    bld(rule="cd ${SRC[2].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-pkg ocamlgraph -lib unix "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-cflags '-I ${SRC[0].parent.abspath()} -I ${SRC[1].parent.abspath()}' "
+        "-lflags '-I ${SRC[0].parent.abspath()} -I ${SRC[1].parent.abspath()} str.cmxa ikos.cmxa ast.cmxa -cc ${CXX} ${OCAMLC_IKOS_LINKFLAGS}' "
+        "-I backends/C "
+        "lustrec.native",
+        source=['../api/ikos.cmxa', '../ast/ast.cmxa', 'lustrec.ml'], target='lustrec.native')
+
+    bld(rule="cd ${SRC[0].parent.abspath()} && "
+        "${OCAMLBUILD} -quiet "
+        "-pkg ocamlgraph -libs unix,str "
+        "-build-dir ${TGT[0].parent.abspath()} "
+        "-lflags '-w -31' lustrec.top",
+        source='lustrec.ml', target='lustrec.top', after='lustrec.native')

@@ -1,0 +1,83 @@
+from os.path import join
+
+
+def options(opt):
+    opt.add_option('--no-lustrec', action='store_true', default=False, help='Do not build lustrec')
+
+
+def configure(conf):
+    conf.env.lustrec = not conf.options.no_lustrec
+
+    conf.load('ocaml')
+    conf.find_program('ocamlfind', var='OCAMLFIND')
+    conf.find_program('ocamlmklib', var='OCAMLMKLIB')
+    conf.find_program('ocamlbuild', var='OCAMLBUILD')
+
+    # libraries directory
+    conf.env.OCAML_DESTDIR = conf.cmd_and_log('%s printconf destdir' % conf.env.OCAMLFIND[0]).strip()
+
+    # Hack to give more options to ocamlc
+    LINKFLAGS = filter(lambda f: not f.startswith('-Wl,'), conf.env.LINKFLAGS + conf.env.IKOS_LINKFLAGS) # ignore -Wl,<opt>
+    conf.env.OCAMLC_IKOS_LINKFLAGS = ' '.join('-cclib %s' % opt for opt in LINKFLAGS)
+
+
+def build(bld):
+    bld.add_post_fun(post)
+    bld.recurse('api')
+    bld.recurse('ast')
+    bld.recurse('tests')
+
+    if bld.env.lustrec:
+        bld.recurse('lustrec')
+
+
+def post(ctx):
+    if ctx.cmd == 'install':
+        meta = ctx.path.find_node('OIkos/META')
+        api = ctx.path.find_dir('OIkos/api')
+        ast = ctx.path.find_dir('OIkos/ast')
+
+        kw = {
+            'ocamlfind': ctx.env.OCAMLFIND[0],
+            'destdir': join(ctx.options.destdir if ctx.options.destdir else '/', ctx.env.OCAML_DESTDIR[1:]),
+            'meta': meta.abspath(),
+            'api': api.abspath(),
+            'api_build': api.get_bld().abspath(),
+            'ast': ast.abspath(),
+            'ast_build': ast.get_bld().abspath(),
+        }
+
+        sources = [
+            '{meta}',
+            '{api}/ikos.mli',
+            '{api_build}/ikos.a',
+            '{api_build}/libikos.a',
+            '{api_build}/ikos.cma',
+            '{api_build}/ikos.cmi',
+            '{api_build}/ikos.cmo',
+            '{api_build}/ikos.cmx',
+            '{api_build}/ikos.cmxa',
+            '{ast}/ast.mli',
+            '{ast_build}/ast.a',
+            '{ast_build}/ast.cma',
+            '{ast_build}/ast.cmi',
+            '{ast_build}/ast.cmo',
+            '{ast_build}/ast.cmx',
+            '{ast_build}/ast.cmxa',
+            '{ast_build}/ast_lexer.ml',
+            '{ast_build}/ast_lexer.cmi',
+            '{ast_build}/ast_lexer.cmo',
+            '{ast_build}/ast_lexer.cmx',
+            '{ast_build}/ast_parser.mli',
+            '{ast_build}/ast_parser.cmi',
+            '{ast_build}/ast_parser.cmo',
+            '{ast_build}/ast_parser.cmx',
+            '{ast_build}/ast_types.ml',
+            '{ast_build}/ast_types.cmi',
+            '{ast_build}/ast_types.cmo',
+            '{ast_build}/ast_types.cmx',
+        ]
+        sources = ' '.join("'" + p.format(**kw) + "'" for p in sources)
+
+        ctx.exec_command('mkdir -p {destdir}'.format(**kw))
+        ctx.exec_command("{ocamlfind} install -destdir '{destdir}' ikos ".format(**kw) + sources)

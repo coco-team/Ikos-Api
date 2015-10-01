@@ -1,0 +1,6 @@
+include README.md
+include LICENSE
+include ikos-core/*/*.hpp
+include ikos-core/ikos.patch
+prune ikos-core/ikos
+include PyIkos/tests/*.py

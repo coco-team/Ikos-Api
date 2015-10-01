@@ -1,0 +1,23 @@
+def options(opt):
+    opt.load('python')
+
+def configure(conf):
+    conf.load('python')
+    conf.check_python_version()
+    conf.check_python_headers()
+
+def build(bld):
+    bld.shlib(
+        features = 'pyext',
+        source = 'ikos/apicore.cpp',
+        target = 'ikos/apicore',
+        cxxflags = ['-fPIC'] + bld.env.IKOS_CXXFLAGS,
+        linkflags = bld.env.IKOS_LINKFLAGS,
+        use = ['IKOS_CORE', 'PYTHON', 'BOOST_PYTHON'],
+        install_path = '${PYTHONDIR}/ikos'
+    )
+    bld(features = 'py', source = 'ikos/api.py', install_path = '${PYTHONDIR}/ikos')
+    bld(features = 'py', source = 'ikos/wrapper.py', install_path = '${PYTHONDIR}/ikos')
+    bld(features = 'py', source = 'ikos/__init__.py', install_path = '${PYTHONDIR}/ikos')
+    bld(features = 'py', source = 'tests/test_api.py', install_path = '${PYTHONDIR}/ikos/tests')
+    bld(features = 'py', source = 'tests/test_ikos.py', install_path = '${PYTHONDIR}/ikos/tests')

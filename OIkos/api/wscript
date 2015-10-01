@@ -1,0 +1,20 @@
+def build(bld):
+    bld.objects(
+        source = 'ikos_stub.cpp',
+        target = 'ikos_stub',
+        cxxflags = ['-fPIC'] + bld.env.IKOS_CXXFLAGS,
+        use = ['IKOS_CORE', 'OCAML']
+    )
+    bld(rule='${OCAMLC} -c -o ${TGT[0].abspath()} ${SRC[0].abspath()}',
+        source='ikos.mli', target='ikos.cmi')
+    bld(rule='${OCAMLC} -c -I ${TGT[0].parent.abspath()} -o ${TGT[0].abspath()} ${SRC[0].abspath()}',
+        source=['ikos.ml', 'ikos.cmi'], target='ikos.cmo')
+    bld(rule='${OCAMLOPT} -c -I ${TGT[0].parent.abspath()} -o ${TGT[0].abspath()} ${SRC[0].abspath()}',
+        source=['ikos.ml', 'ikos.cmi'], target='ikos.cmx')
+    bld(rule='${OCAMLMKLIB} -o ${TGT[0].parent.abspath()}/ikos ${SRC} ${LINKFLAGS} ${IKOS_LINKFLAGS}',
+        source=['ikos.cmo', 'ikos.cmx', 'ikos_stub.cpp.1.o'], target=['ikos.cma', 'ikos.cmxa'])
+    bld(rule="echo '#!/bin/bash\nocaml "
+        "-I ${SRC[0].parent.abspath()} "
+        "str.cma ikos.cma' > ${TGT[0].abspath()} && "
+        "chmod +x ${TGT[0].abspath()}",
+        source='ikos.cma', target='ikos.top')
